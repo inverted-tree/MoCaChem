@@ -1,0 +1,20 @@
+# [Integer] Number of monte-carlo steps to simulate
+monte-carlo-steps = 1000
+
+# [Integer] Number of equilibrium steps to simulate
+equilibrium-steps = 1000
+
+# [Integer] Number of particles in the box volume
+particle-count = 1024
+
+# [ Float ] Fluid density in Lennard-Jones units
+fluid-density = 1.0
+
+# [ Float ] Temperature of the fluid
+fluid-temperature = 1.0
+
+# [ Float ] Maximum single-step displacement distance for the atoms
+maximum-displacement = 0.2
+
+# [ Float ] Cutoff radius for the Lennard-Jones potential
+cutoff-distance = 2.5

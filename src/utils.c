@@ -1,7 +1,10 @@
 #include "utils.h"
 #include "maybe.h"
 #include "panic.h"
+#include "toml-parser.h"
+#include <assert.h>
 #include <limits.h>
+#include <math.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -23,10 +26,6 @@ enum MCC_UTILS_ARG_TYPE {
 
 static bool mcc_utils_file_exists(char const *path);
 
-static mcc_Maybe mcc_utils_find_file_in_subdirs(char *const base_dir,
-                                                char const *file,
-                                                unsigned depth);
-
 static char *mcc_utils_get_default_config_path();
 
 static char *mcc_utils_get_project_root_dir();
@@ -37,17 +36,17 @@ static enum MCC_UTILS_ARG_TYPE mcc_utils_map_arg_to_enum(char const *arg);
 //  Interface function definitions
 //******************************************************************************
 
-mcc_CmdlOpts mcc_utils_handle_command_line_args(int argc, char **argv) {
+mcc_CmdlOpts_t mcc_utils_handle_command_line_args(int argc, char **argv) {
 	char *root = mcc_utils_get_project_root_dir();
-	mcc_Maybe root_dir = mcc_just_string(root);
+	mcc_Maybe_t root_dir = mcc_just_string(root);
 	free(root);
 
-	mcc_Maybe config = mcc_nothing();
+	mcc_Maybe_t config = mcc_nothing();
 	for (size_t arg = 1; (const int)arg < argc; arg++) {
 		char err_msg[256];
 		switch (mcc_utils_map_arg_to_enum(argv[arg])) {
 		case CONFIG_PATH:
-			if (arg + 1 >= argc)
+			if ((int)arg + 1 >= argc)
 				mcc_panic(
 				    MCC_ERR_FILE_NOT_FOUND,
 				    "No file provided after custom config option was set");
@@ -88,11 +87,28 @@ mcc_CmdlOpts mcc_utils_handle_command_line_args(int argc, char **argv) {
 		free(config_path);
 	}
 
-	mcc_CmdlOpts result = {
+	mcc_CmdlOpts_t result = {
 	    .root_dir = root_dir,
 	    .config = config,
 	};
 	return result;
+}
+
+mcc_Config_t mcc_utils_init_config(mcc_CmdlOpts_t args) {
+	assert(!mcc_is_nothing(args.config));
+	mcc_Config_t config =
+	    mcc_toml_parse_config(mcc_from_just_string(args.config));
+
+	config.box_volume = config.particle_count / config.fluid_density;
+	config.box_length = pow(config.box_volume, 1.0 / 3);
+
+	double const rr3 = 1.0 / pow(config.cutoff_dist, 3.0);
+	config.virial_corr =
+	    8.0 * M_PI * config.fluid_density * (pow(rr3, 3.0) / 9 - rr3 / 3);
+	config.lj_pot_corr = 16.0 / 3 * M_PI * pow(config.fluid_density, 2.0) *
+	                     (2.0 / 3 * pow(rr3, 3.0) - rr3);
+
+	return config;
 }
 
 void mcc_utils_print_title_image() {
@@ -113,37 +129,6 @@ void mcc_utils_print_title_image() {
 //******************************************************************************
 //  Helper function definitions
 //******************************************************************************
-
-static mcc_Maybe mcc_utils_find_file_in_subdirs(char *const base_dir,
-                                                char const *file,
-                                                unsigned depth) {
-	char *current_dir = realpath(base_dir, NULL);
-	if (!current_dir)
-		return mcc_nothing();
-
-	while (current_dir && depth > 0) {
-		char test_file_path[PATH_MAX];
-		snprintf(test_file_path, sizeof(test_file_path), "%s/%s", current_dir,
-		         file);
-
-		if (mcc_utils_file_exists(test_file_path)) {
-			free(current_dir);
-			return mcc_just_string(test_file_path);
-		}
-
-		char *last_divider = strrchr(current_dir, '/');
-		if (last_divider) {
-			*last_divider = '\0';
-		} else {
-			free(current_dir);
-			return mcc_nothing();
-		}
-
-		depth--;
-	}
-
-	return mcc_nothing();
-}
 
 static bool mcc_utils_file_exists(char const *path) {
 	return access(path, F_OK) ? false : true;
