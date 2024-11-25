@@ -5,4 +5,8 @@ build/
 # MacOS Cache
 .DS_Store
 
+# Code formatting
+.clang*
+.luarc.json
+stylua.toml
 
