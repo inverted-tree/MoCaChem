@@ -16,3 +16,5 @@ typedef struct {
 //******************************************************************************
 
 mcc_CmdlOpts mcc_utils_handle_command_line_args(int argc, char **argv);
+
+void mcc_utils_print_title_image();
