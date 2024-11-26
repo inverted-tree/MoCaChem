@@ -5,7 +5,7 @@
 #include <stdio.h>
 
 //******************************************************************************
-//  Helper function declarations
+//  Helper Function Declarations
 //******************************************************************************
 
 mcc_Maybe_t mcc_toml_get_double_with_key(toml_table_t *table, char *key);
@@ -15,7 +15,7 @@ mcc_Maybe_t mcc_toml_get_int_with_key(toml_table_t *table, char *key);
 mcc_Maybe_t mcc_toml_get_string_with_key(toml_table_t *table, char *key);
 
 //******************************************************************************
-//  Interface function definitions
+//  Interface Function Definitions
 //******************************************************************************
 
 mcc_Config_t mcc_toml_parse_config(char *config_path) {
@@ -61,7 +61,7 @@ mcc_Config_t mcc_toml_parse_config(char *config_path) {
 }
 
 //******************************************************************************
-//  Helper function definitions
+//  Helper Function Definitions
 //******************************************************************************
 
 mcc_Maybe_t mcc_toml_get_double_with_key(toml_table_t *table, char *key) {

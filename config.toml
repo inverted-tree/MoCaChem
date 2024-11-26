@@ -5,7 +5,7 @@ monte-carlo-steps = 1000
 equilibrium-steps = 1000
 
 # [Integer] Number of particles in the box volume
-particle-count = 1024
+particle-count = 16
 
 # [ Float ] Fluid density in Lennard-Jones units
 fluid-density = 1.0

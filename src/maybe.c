@@ -3,7 +3,7 @@
 #include "string.h"
 
 //******************************************************************************
-//  Interface function definitions
+//  Interface Function Definitions
 //******************************************************************************
 
 mcc_Maybe_t mcc_just_int(int value) {

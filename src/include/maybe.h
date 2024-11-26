@@ -3,7 +3,7 @@
 #include <stdbool.h>
 
 //******************************************************************************
-//  Interface datatype declarations
+//  Interface Datatype Declarations
 //******************************************************************************
 
 typedef enum {
@@ -23,7 +23,7 @@ typedef struct {
 } mcc_Maybe_t;
 
 //******************************************************************************
-//  Interface function declarations
+//  Interface Function Declarations
 //******************************************************************************
 
 double mcc_from_just_double(mcc_Maybe_t m);

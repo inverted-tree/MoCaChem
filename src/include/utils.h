@@ -1,10 +1,10 @@
 #pragma once
 
+#include "config.h"
 #include "maybe.h"
 
-#include "toml-parser.h"
 //******************************************************************************
-//  Interface datatype declarations
+//  Interface Datatype Declarations
 //******************************************************************************
 
 typedef struct {
@@ -13,7 +13,7 @@ typedef struct {
 } mcc_CmdlOpts_t;
 
 //******************************************************************************
-//  Interface function declarations
+//  Interface Function Declarations
 //******************************************************************************
 
 void mcc_utils_destroy_command_line_options(mcc_CmdlOpts_t options);

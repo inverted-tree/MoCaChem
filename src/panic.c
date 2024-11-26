@@ -3,7 +3,7 @@
 #include <stdlib.h>
 
 //******************************************************************************
-//  Interface function definitions
+//  Interface Function Definitions
 //******************************************************************************
 
 void mcc_panic(MCC_ERR_TYPE err, char const *msg) {

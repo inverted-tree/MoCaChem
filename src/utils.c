@@ -12,7 +12,7 @@
 #include <unistd.h>
 
 //******************************************************************************
-//  Helper datatype declarations
+//  Helper Datatype Declarations
 //******************************************************************************
 
 enum MCC_UTILS_ARG_TYPE {
@@ -25,7 +25,7 @@ struct mcc_CmdlOptsTracker_t {
 };
 
 //******************************************************************************
-//  Helper function declarations
+//  Helper Function Declarations
 //******************************************************************************
 
 static bool mcc_utils_file_exists(char const *path);
@@ -37,7 +37,7 @@ static char *mcc_utils_get_project_root_dir();
 static enum MCC_UTILS_ARG_TYPE mcc_utils_map_arg_to_enum(char const *arg);
 
 //******************************************************************************
-//  Interface function definitions
+//  Interface Function Definitions
 //******************************************************************************
 
 void mcc_utils_destroy_command_line_options(mcc_CmdlOpts_t options) {
@@ -149,7 +149,7 @@ void mcc_utils_print_title_image() {
 }
 
 //******************************************************************************
-//  Helper function definitions
+//  Helper Function Definitions
 //******************************************************************************
 
 static bool mcc_utils_file_exists(char const *path) {
