@@ -20,6 +20,10 @@ enum MCC_UTILS_ARG_TYPE {
 	NONE,
 };
 
+struct mcc_CmdlOptsTracker_t {
+	bool config_path;
+};
+
 //******************************************************************************
 //  Helper function declarations
 //******************************************************************************
@@ -36,25 +40,36 @@ static enum MCC_UTILS_ARG_TYPE mcc_utils_map_arg_to_enum(char const *arg);
 //  Interface function definitions
 //******************************************************************************
 
+void mcc_utils_destroy_command_line_options(mcc_CmdlOpts_t options) {
+	free(options.root_dir.str_value);
+	free(options.config.str_value);
+}
+
 mcc_CmdlOpts_t mcc_utils_handle_command_line_args(int argc, char **argv) {
 	char *root = mcc_utils_get_project_root_dir();
 	mcc_Maybe_t root_dir = mcc_just_string(root);
 	free(root);
 
+	struct mcc_CmdlOptsTracker_t options_tracker = {};
 	mcc_Maybe_t config = mcc_nothing();
-	for (size_t arg = 1; (const int)arg < argc; arg++) {
+	for (size_t arg = 1; arg < (size_t)argc; arg++) {
 		char err_msg[256];
 		switch (mcc_utils_map_arg_to_enum(argv[arg])) {
 		case CONFIG_PATH:
-			if ((int)arg + 1 >= argc)
-				mcc_panic(
-				    MCC_ERR_FILE_NOT_FOUND,
-				    "No file provided after custom config option was set");
+			if (options_tracker.config_path)
+				mcc_panic(MCC_ERR_IO, "Config Path option already set");
+
+			if ((int)arg + 1 >= argc) {
+				snprintf(err_msg, sizeof(err_msg),
+				         "No file provided after argument '%s'", argv[arg]);
+				mcc_panic(MCC_ERR_FILE_NOT_FOUND, err_msg);
+			}
 
 			char argstr[PATH_MAX];
 			strcpy(argstr, argv[arg + 1]);
 			if (mcc_utils_file_exists(argstr)) {
 				config = mcc_just_string(argstr);
+				options_tracker.config_path = true;
 				arg++;
 				continue;
 			}
@@ -64,8 +79,15 @@ mcc_CmdlOpts_t mcc_utils_handle_command_line_args(int argc, char **argv) {
 			         mcc_from_just_string(root_dir), argstr);
 			if (mcc_utils_file_exists(appended_argstr)) {
 				char *clean_argstr = realpath(appended_argstr, NULL);
+				if (!clean_argstr) {
+					snprintf(err_msg, sizeof(err_msg),
+					         "Failed to resolve realpath for '%s'",
+					         appended_argstr);
+					mcc_panic(MCC_ERR_FILE_NOT_FOUND, err_msg);
+				}
 				config = mcc_just_string(clean_argstr);
 				free(clean_argstr);
+				options_tracker.config_path = true;
 				arg++;
 				continue;
 			}

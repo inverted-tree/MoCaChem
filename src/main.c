@@ -24,5 +24,6 @@ int main(int argc, char **argv) {
 	printf("v_corr:....... %f\n", config.virial_corr);
 	printf("p_corr:....... %f\n", config.lj_pot_corr);
 
+	mcc_utils_destroy_command_line_options(args);
 	return 0;
 }

@@ -1,5 +1,6 @@
 #include "maybe.h"
 #include "panic.h"
+#include "string.h"
 
 //******************************************************************************
 //  Interface function definitions
@@ -24,7 +25,7 @@ mcc_Maybe_t mcc_just_double(double value) {
 mcc_Maybe_t mcc_just_string(char *value) {
 	mcc_Maybe_t m = {
 	    .t = JUST_STRING,
-	    .str_value = value,
+	    .str_value = strdup(value),
 	};
 	return m;
 }
