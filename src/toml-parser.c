@@ -19,7 +19,6 @@ mcc_Maybe_t mcc_toml_get_string_with_key(toml_table_t *table, char *key);
 //******************************************************************************
 
 mcc_Config_t mcc_toml_parse_config(char *config_path) {
-	config_path = "/Users/lukas/Projects/MoCaChem/config.toml";
 	size_t const ebuf_size = 256;
 	FILE *file = fopen(config_path, "r");
 	if (!file) {

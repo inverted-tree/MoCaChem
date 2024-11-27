@@ -17,6 +17,7 @@
 
 enum MCC_UTILS_ARG_TYPE {
 	CONFIG_PATH,
+	HELP,
 	NONE,
 };
 
@@ -35,6 +36,8 @@ static char *mcc_utils_get_default_config_path();
 static char *mcc_utils_get_project_root_dir();
 
 static enum MCC_UTILS_ARG_TYPE mcc_utils_map_arg_to_enum(char const *arg);
+
+static void mcc_utils_print_help_message();
 
 //******************************************************************************
 //  Interface Function Definitions
@@ -96,7 +99,12 @@ mcc_CmdlOpts_t mcc_utils_handle_command_line_args(int argc, char **argv) {
 			         argstr);
 			mcc_panic(MCC_ERR_FILE_NOT_FOUND, err_msg);
 			break;
+		case HELP:
+			mcc_utils_print_help_message();
+			exit(EXIT_SUCCESS);
 		case NONE:
+			mcc_utils_print_help_message();
+			puts("");
 			snprintf(err_msg, sizeof(err_msg), "Unknown argument '%s'",
 			         argv[arg]);
 			mcc_panic(MCC_ERR_UNKNOWN_ARGUMENT, err_msg);
@@ -182,7 +190,26 @@ static char *mcc_utils_get_project_root_dir() {
 static enum MCC_UTILS_ARG_TYPE mcc_utils_map_arg_to_enum(char const *arg) {
 	if (!strcmp(arg, "-c") || !strcmp(arg, "--config")) {
 		return CONFIG_PATH;
+	} else if (!strcmp(arg, "-h") || !strcmp(arg, "--help")) {
+		return HELP;
 	} else {
 		return NONE;
 	}
+}
+
+static void mcc_utils_print_help_message() {
+	printf(" Usage: MoCaChem [options]\n\n"
+	       " Description:\n"
+	       "  MoCaChem is a Monte Carlo simulation to estimate the chemical "
+	       "potential of a fluid using Lennard-Jones interactions via particle "
+	       "fluctuations in the system's volume.\n\n"
+	       " Options:\n"
+	       "  -c / --config		Pass a non-standrad config file to the "
+	       "simulation.\n"
+	       "  -h / --help    	Show this help message and exit.\n\n"
+	       " Example:\n"
+	       "  MoCaChem\n"
+	       "  MoCaChem --config ./configs/config-1.toml\n\n"
+	       " Please report bugs to the issue tracker at "
+	       "https://github.com/inverted-tree/MoCaChem/issues\n");
 }
