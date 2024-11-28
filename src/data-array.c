@@ -1,6 +1,7 @@
 #include "data-array.h"
 #include "config.h"
 #include "data.h"
+#include "panic.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
@@ -33,14 +34,14 @@ struct mcc_Particle_Iterator_State_t state = {
 //  Internal function declarations
 //******************************************************************************
 
-bool mcc_data_array_initalize(mcc_Config_t config);
+bool mcc_data_array_initalize(mcc_Config_t *config);
 
 bool mcc_data_array_finalize();
 
-mcc_Particle_t *mcc_data_array_get_particle(int index, mcc_Config_t config);
+mcc_Particle_t *mcc_data_array_get_particle(int index, mcc_Config_t *config);
 
 bool mcc_data_array_set_particle(int index, mcc_Particle_t particle,
-                                 mcc_Config_t config);
+                                 mcc_Config_t *config);
 
 mcc_Particle_t *mcc_data_array_iterator_next();
 
@@ -75,11 +76,11 @@ mcc_Particle_Iterator_t mcc_data_array_get_iterator(int index, double cutoff) {
 //  Internal function definitions
 //******************************************************************************
 
-bool mcc_data_array_initalize(mcc_Config_t config) {
+bool mcc_data_array_initalize(mcc_Config_t *config) {
 	if (data.is_initialized)
 		return false;
 
-	size_t number_of_particles = config.particle_count;
+	size_t number_of_particles = config->particle_count;
 	srand(time(NULL));
 
 	mcc_Particle_t *particle_positions =
@@ -103,22 +104,23 @@ bool mcc_data_array_finalize() {
 	return true;
 }
 
-mcc_Particle_t *mcc_data_array_get_particle(int index, mcc_Config_t config) {
+mcc_Particle_t *mcc_data_array_get_particle(int index, mcc_Config_t *config) {
 	(void)config;
 	if (index < 0)
 		index = rand() % data.number_of_particles;
 
-	if (index < data.number_of_particles)
+	if ((size_t)index < data.number_of_particles)
 		return &data.particle_positions[index];
 
-	fprintf(stderr, "Particle index '%i' is out of bounds", index);
-	return false;
+	char err_msg[256];
+	snprintf(err_msg, 256, "Particle index '%i' is out of bounds", index);
+	mcc_panic(MCC_ERR_INDEX_OUT_OF_BOUNDS, err_msg);
 }
 
 bool mcc_data_array_set_particle(int index, mcc_Particle_t particle,
-                                 mcc_Config_t config) {
+                                 mcc_Config_t *config) {
 	(void)config;
-	if (index < 0 || index >= data.number_of_particles) {
+	if (index < 0 || (size_t)index >= data.number_of_particles) {
 		fprintf(stderr, "Particle index '%i' is out of bounds (%zu).\n", index,
 		        data.number_of_particles);
 		return false;
