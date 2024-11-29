@@ -17,6 +17,7 @@ struct mcc_Data_Array_t {
 };
 
 struct mcc_Particle_Iterator_State_t {
+	int index;
 	size_t current;
 	double cutoff;
 };
@@ -26,6 +27,7 @@ struct mcc_Data_Array_t data = {.is_initialized = false,
                                 .particle_positions = NULL};
 
 struct mcc_Particle_Iterator_State_t state = {
+    .index = 0,
     .current = 0,
     .cutoff = 0.0,
 };
@@ -62,7 +64,8 @@ mcc_Particle_Access_Functions_t mcc_data_array_get_access_functions() {
 }
 
 mcc_Particle_Iterator_t mcc_data_array_get_iterator(int index, double cutoff) {
-	state.current = index;
+	state.index = index;
+	state.current = 0;
 	state.cutoff = cutoff;
 
 	mcc_Particle_Iterator_t iterator = {
@@ -99,13 +102,18 @@ bool mcc_data_array_initalize(mcc_Config_t *config) {
 }
 
 bool mcc_data_array_finalize() {
-	free(data.particle_positions);
+	if (data.particle_positions)
+		free(data.particle_positions);
 	data.is_initialized = false;
 	return true;
 }
 
 mcc_Particle_t *mcc_data_array_get_particle(int index, mcc_Config_t *config) {
 	(void)config;
+	if (!data.is_initialized)
+		mcc_panic(MCC_ERR_INDEX_OUT_OF_BOUNDS,
+		          "Data has not been initialized before access");
+
 	if (index < 0)
 		index = rand() % data.number_of_particles;
 
@@ -120,6 +128,10 @@ mcc_Particle_t *mcc_data_array_get_particle(int index, mcc_Config_t *config) {
 bool mcc_data_array_set_particle(int index, mcc_Particle_t particle,
                                  mcc_Config_t *config) {
 	(void)config;
+	if (!data.is_initialized)
+		mcc_panic(MCC_ERR_INDEX_OUT_OF_BOUNDS,
+		          "Data has not been initialized before access");
+
 	if (index < 0 || (size_t)index >= data.number_of_particles) {
 		fprintf(stderr, "Particle index '%i' is out of bounds (%zu).\n", index,
 		        data.number_of_particles);
@@ -131,7 +143,8 @@ bool mcc_data_array_set_particle(int index, mcc_Particle_t particle,
 }
 
 mcc_Particle_t *mcc_data_array_iterator_next() {
-	return (state.current <= data.number_of_particles - 1)
+	return (state.current != (size_t)state.index &&
+	        state.current < data.number_of_particles)
 	           ? &data.particle_positions[state.current++]
 	           : NULL;
 }

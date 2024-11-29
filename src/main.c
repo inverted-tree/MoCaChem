@@ -1,4 +1,5 @@
 #include "data.h"
+#include "lennard-jones.h"
 #include "monte-carlo.h"
 #include "utils.h"
 #include <stdio.h>
@@ -8,10 +9,10 @@ int main(int argc, char **argv) {
 	mcc_utils_print_title_image();
 	mcc_Config_t config = mcc_utils_init_config(args);
 
-	mcc_Particle_Access_Functions_t functions = mcc_data_get_access_functions();
+	mcc_Particle_Access_Functions_t fs = mcc_data_get_access_functions();
 
 	bool no_error = true;
-	no_error &= functions.initialize(&config);
+	no_error &= fs.initialize(&config);
 
 	size_t res = 2; /* The initial particle lattice resolution */
 	while (res * res * res < (size_t)config.particle_count)
@@ -28,19 +29,22 @@ int main(int argc, char **argv) {
 		    (y + 0.5) * dl_cell,
 		    (z + 0.5) * dl_cell,
 		};
-		no_error &= functions.set_particle(i, particle, &config);
+		no_error &= fs.set_particle(i, particle, &config);
 	}
 
-	mcc_Particle_t *particle = NULL;
-	mcc_Particle_Iterator_t iterator = mcc_data_get_iterator(0, &config);
-	size_t counter = 0;
-	while (!iterator.is_done(particle = iterator.next())) {
-		printf("The particle at position [%zu] has value: (%f, %f, %f))\n",
-		       counter, particle->x, particle->y, particle->z);
-		counter++;
+	mcc_Energy_t global_energy = mcc_lennard_jones_system_potential(&config);
+	fprintf(stdout, "The initial chemical potential is %f\n",
+	        global_energy.lennard_jones / config.particle_count);
+
+	size_t accepted_moves = 0;
+	for (int i = 0; i < config.monte_carlo_steps; i++) {
+		accepted_moves += mcc_monte_carlo_move(&global_energy, &config);
+		if (i % 50000 == 0)
+			printf("Move [%i]: LJ-Potential = %f\n", i,
+			       global_energy.lennard_jones / config.particle_count);
 	}
 
-	no_error &= functions.finalize();
+	no_error &= fs.finalize();
 	mcc_utils_destroy_command_line_options(args);
 
 	return !no_error;

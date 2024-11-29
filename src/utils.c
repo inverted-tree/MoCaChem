@@ -133,10 +133,12 @@ mcc_Config_t mcc_utils_init_config(mcc_CmdlOpts_t args) {
 	config.box_length = pow(config.box_volume, 1.0 / 3);
 
 	double const rr3 = 1.0 / pow(config.cutoff_dist, 3.0);
-	config.virial_corr =
+	config.lj_error =
 	    8.0 * M_PI * config.fluid_density * (pow(rr3, 3.0) / 9 - rr3 / 3);
-	config.lj_pot_corr = 16.0 / 3 * M_PI * pow(config.fluid_density, 2.0) *
-	                     (2.0 / 3 * pow(rr3, 3.0) - rr3);
+	config.p_error = 16.0 / 3 * M_PI * pow(config.fluid_density, 2.0) *
+	                 (2.0 / 3 * pow(rr3, 3.0) - rr3);
+	config.lj_at_cutoff = 4 * (1.0 / pow(config.cutoff_dist, 12) -
+	                           1.0 / pow(config.cutoff_dist, 6));
 
 	return config;
 }

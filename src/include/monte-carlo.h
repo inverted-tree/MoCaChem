@@ -1,9 +1,10 @@
 #pragma once
 
 #include "config.h"
+#include "lennard-jones.h"
 
 //******************************************************************************
 // Interface Function Declarations
 //******************************************************************************
 
-void mcc_monte_carlo_move(mcc_Config_t *config);
+bool mcc_monte_carlo_move(mcc_Energy_t *energy, mcc_Config_t *config);

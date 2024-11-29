@@ -17,6 +17,7 @@ typedef struct {
 	double box_volume;
 	double box_length;
 
-	double virial_corr;
-	double lj_pot_corr;
+	double lj_error;
+	double p_error;
+	double lj_at_cutoff;
 } mcc_Config_t;

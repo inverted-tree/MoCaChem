@@ -1,6 +1,7 @@
 #include "monte-carlo.h"
 #include "config.h"
 #include "data.h"
+#include "lennard-jones.h"
 #include <math.h>
 #include <stdlib.h>
 
@@ -12,30 +13,38 @@ static void mcc_monte_carlo_apply_boundary_condition(mcc_Particle_t *particle,
                                                      double box_length);
 
 static mcc_Particle_t
-mcc_monte_carlo_displace_particle(mcc_Particle_t *particle,
+mcc_monte_carlo_displace_particle(mcc_Particle_t const *particle,
                                   double max_displacement, double box_length);
-
-double mcc_lennard_jones_potential() { return 0.0; }
 
 //******************************************************************************
 // Interface Function Definitions
 //******************************************************************************
 
-void mcc_monte_carlo_move(mcc_Config_t *config) {
-	mcc_Particle_Access_Functions_t functions = mcc_data_get_access_functions();
+bool mcc_monte_carlo_move(mcc_Energy_t *energy, mcc_Config_t *config) {
+	mcc_Particle_Access_Functions_t fs = mcc_data_get_access_functions();
 
-	size_t index = rand() % config->particle_count;
-	mcc_Particle_t *old_particle = functions.get_particle(index, config);
-	double old_energy = mcc_lennard_jones_potential();
+	int index = rand() % config->particle_count;
+	mcc_Particle_t *old_particle = fs.get_particle(index, config);
+	mcc_Energy_t old_energy =
+	    mcc_lennard_jones_particle_potential(index, old_particle, config);
 
 	mcc_Particle_t new_particle = mcc_monte_carlo_displace_particle(
 	    old_particle, config->max_displ, config->box_length);
-	double new_energy = mcc_lennard_jones_potential();
+
+	mcc_Energy_t new_energy =
+	    mcc_lennard_jones_particle_potential(index, &new_particle, config);
 
 	double chance = (double)rand() / RAND_MAX;
-	if (chance < exp(-(new_energy - old_energy) / config->fluid_temp)) {
-		functions.set_particle(index, new_particle, config);
+	if (chance < exp(-(new_energy.lennard_jones - old_energy.lennard_jones) /
+	                 config->fluid_temp)) {
+		fs.set_particle(index, new_particle, config);
+		energy->lennard_jones +=
+		    new_energy.lennard_jones - old_energy.lennard_jones;
+		energy->virial += new_energy.virial - old_energy.virial;
+
+		return true;
 	}
+	return false;
 }
 
 //******************************************************************************
@@ -43,7 +52,7 @@ void mcc_monte_carlo_move(mcc_Config_t *config) {
 //******************************************************************************
 
 static mcc_Particle_t
-mcc_monte_carlo_displace_particle(mcc_Particle_t *particle,
+mcc_monte_carlo_displace_particle(mcc_Particle_t const *particle,
                                   double max_displacement, double box_length) {
 	mcc_Particle_t displaced_particle = {
 	    .x = particle->x +
