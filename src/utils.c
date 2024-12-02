@@ -198,6 +198,10 @@ void mcc_utils_print_progress_bar(int progress, int total) {
 	int bar_width = 58;
 	int progress_chars = (progress * bar_width) / total;
 
+	if (progress == total)
+		printf("\033[32m");
+	else
+		printf("\033[33m");
 	printf("\n\n   ");
 	for (int i = 0; i < bar_width; i++) {
 		if (i < progress_chars) {
@@ -206,22 +210,24 @@ void mcc_utils_print_progress_bar(int progress, int total) {
 			printf("░"); // ○");
 		}
 	}
-	printf(" %d%%", percentage);
+	printf(" %d%%\033[0m", percentage);
 
 	fflush(stdout);
 }
 void mcc_utils_print_title_image() {
 	char *title =
-	    " ______  ___     _________      ______________                  \n"
+	    "\033[34m ______  ___     _________      ______________                "
+	    "  \n"
 	    " ___   |/  /_______  ____/_____ __  ____/__  /_____________ ___   \n"
 	    " __  /|_/ /_  __ \\  /    _  __ `/  /    __  __ \\  _ \\_  __ `__ \\ "
 	    "\n"
 	    " _  /  / / / /_/ / /___  / /_/ // /___  _  / / /  __/  / / / / / \n"
 	    " /_/  /_/  \\____/\\____/  \\__,_/ \\____/  /_/ /_/\\___//_/ /_/ /_/\n"
-	    "———————————————————————————————————————————————————————————————\n"
+	    "———————————————————————————————————————————————————————————————\033["
+	    "33m\n"
 	    " Version: none\n"
 	    " Copyright: Lukas Schröder 2024\n"
-	    " License: MIT\n";
+	    " License: MIT\n\033[0m";
 	puts(title);
 }
 
