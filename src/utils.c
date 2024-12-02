@@ -1,4 +1,6 @@
 #include "utils.h"
+#include "csv-parser.h"
+#include "data.h"
 #include "maybe.h"
 #include "panic.h"
 #include "toml-parser.h"
@@ -18,18 +20,22 @@
 enum MCC_UTILS_ARG_TYPE {
 	CONFIG_PATH,
 	HELP,
+	PARTICLE_POSITIONS,
 	NONE,
 };
 
 struct mcc_CmdlOptsTracker_t {
 	bool config_path;
+	bool particle_config;
 };
 
 //******************************************************************************
 //  Helper Function Declarations
 //******************************************************************************
 
-static bool mcc_utils_file_exists(char const *path);
+mcc_Maybe_t mcc_utils_extract_filepath(int arg, int argc, char **argv);
+
+static bool mcc_utils_file_exists(mcc_Maybe_t path);
 
 static char *mcc_utils_get_default_config_path();
 
@@ -43,18 +49,44 @@ static void mcc_utils_print_help_message();
 //  Interface Function Definitions
 //******************************************************************************
 
-void mcc_utils_destroy_command_line_options(mcc_CmdlOpts_t options) {
-	free(options.root_dir.str_value);
-	free(options.config.str_value);
+void mcc_utils_destroy_command_line_args(mcc_CmdlOpts_t *options) {
+	free(options->config.str_value);
+	free(options->particles.str_value);
+}
+
+mcc_Maybe_t mcc_utils_extract_filepath(int arg, int argc, char **argv) {
+	if (arg + 1 >= argc && mcc_utils_map_arg_to_enum(argv[arg + 1]) != NONE) {
+		char err_msg[256];
+		snprintf(err_msg, 256, "No file path provided after argument '%s'",
+		         argv[arg]);
+		mcc_panic(MCC_ERR_UNKNOWN_ARGUMENT, err_msg);
+	}
+
+	char real_path[PATH_MAX];
+	realpath(argv[arg + 1], real_path);
+	mcc_Maybe_t path = mcc_just_string(real_path);
+
+	if (mcc_utils_file_exists(path))
+		return path;
+
+	char *root = mcc_utils_get_project_root_dir();
+	char argstr[PATH_MAX];
+	snprintf(argstr, PATH_MAX, "%s/%s", root, argv[arg + 1]);
+	free(root);
+	realpath(argstr, real_path);
+	path = mcc_just_string(real_path);
+
+	if (mcc_utils_file_exists(path))
+		return path;
+	else
+		return mcc_nothing();
 }
 
 mcc_CmdlOpts_t mcc_utils_handle_command_line_args(int argc, char **argv) {
-	char *root = mcc_utils_get_project_root_dir();
-	mcc_Maybe_t root_dir = mcc_just_string(root);
-	free(root);
-
 	struct mcc_CmdlOptsTracker_t options_tracker = {};
 	mcc_Maybe_t config = mcc_nothing();
+	mcc_Maybe_t particles = mcc_nothing();
+
 	for (size_t arg = 1; arg < (size_t)argc; arg++) {
 		char err_msg[256];
 		switch (mcc_utils_map_arg_to_enum(argv[arg])) {
@@ -62,46 +94,33 @@ mcc_CmdlOpts_t mcc_utils_handle_command_line_args(int argc, char **argv) {
 			if (options_tracker.config_path)
 				mcc_panic(MCC_ERR_IO, "Config Path option already set");
 
-			if ((int)arg + 1 >= argc) {
-				snprintf(err_msg, sizeof(err_msg),
-				         "No file provided after argument '%s'", argv[arg]);
+			config = mcc_utils_extract_filepath(arg, argc, argv);
+			if (mcc_is_nothing(config)) {
+				snprintf(err_msg, sizeof(err_msg), "Config file '%s' not found",
+				         argv[arg + 1]);
 				mcc_panic(MCC_ERR_FILE_NOT_FOUND, err_msg);
 			}
 
-			char argstr[PATH_MAX];
-			strcpy(argstr, argv[arg + 1]);
-			if (mcc_utils_file_exists(argstr)) {
-				config = mcc_just_string(argstr);
-				options_tracker.config_path = true;
-				arg++;
-				continue;
-			}
-
-			char appended_argstr[PATH_MAX];
-			snprintf(appended_argstr, PATH_MAX, "%s/%s",
-			         mcc_from_just_string(root_dir), argstr);
-			if (mcc_utils_file_exists(appended_argstr)) {
-				char *clean_argstr = realpath(appended_argstr, NULL);
-				if (!clean_argstr) {
-					snprintf(err_msg, sizeof(err_msg),
-					         "Failed to resolve realpath for '%s'",
-					         appended_argstr);
-					mcc_panic(MCC_ERR_FILE_NOT_FOUND, err_msg);
-				}
-				config = mcc_just_string(clean_argstr);
-				free(clean_argstr);
-				options_tracker.config_path = true;
-				arg++;
-				continue;
-			}
-
-			snprintf(err_msg, sizeof(err_msg), "No such config file '%s'",
-			         argstr);
-			mcc_panic(MCC_ERR_FILE_NOT_FOUND, err_msg);
+			options_tracker.config_path = true;
+			arg++;
 			break;
 		case HELP:
 			mcc_utils_print_help_message();
 			exit(EXIT_SUCCESS);
+		case PARTICLE_POSITIONS:
+			if (options_tracker.particle_config)
+				mcc_panic(MCC_ERR_IO, "Particle position option already set");
+
+			particles = mcc_utils_extract_filepath(arg, argc, argv);
+			if (mcc_is_nothing(particles)) {
+				snprintf(err_msg, sizeof(err_msg), "CSV file '%s' not found",
+				         argv[arg + 1]);
+				mcc_panic(MCC_ERR_FILE_NOT_FOUND, err_msg);
+			}
+
+			options_tracker.particle_config = true;
+			arg++;
+			break;
 		case NONE:
 			mcc_utils_print_help_message();
 			puts("");
@@ -118,8 +137,8 @@ mcc_CmdlOpts_t mcc_utils_handle_command_line_args(int argc, char **argv) {
 	}
 
 	mcc_CmdlOpts_t result = {
-	    .root_dir = root_dir,
 	    .config = config,
+	    .particles = particles,
 	};
 	return result;
 }
@@ -143,6 +162,37 @@ mcc_Config_t mcc_utils_init_config(mcc_CmdlOpts_t args) {
 	return config;
 }
 
+bool mcc_utils_init_particles(mcc_CmdlOpts_t *args, mcc_Config_t *config) {
+	bool success = true;
+	mcc_Particle_Access_Functions_t fs = mcc_data_get_access_functions();
+	if (mcc_is_nothing(args->particles)) {
+		size_t res = 2; /* The initial particle lattice resolution */
+		while (res * res * res < (size_t)config->particle_count)
+			res++;
+
+		double dl_cell =
+		    config->box_length / res; /* The length of a lattice cell */
+		for (size_t i = 0; i < (size_t)config->particle_count; i++) {
+			size_t x = i % res;
+			size_t y = (i / res) % res;
+			size_t z = i / (res * res);
+
+			mcc_Particle_t particle = {
+			    (x + 0.5) * dl_cell,
+			    (y + 0.5) * dl_cell,
+			    (z + 0.5) * dl_cell,
+			};
+			success &= fs.set_particle(i, particle, config);
+		}
+	} else {
+		mcc_csv_read_particle_configuration(
+		    mcc_from_just_string(args->particles), config);
+	}
+
+	mcc_utils_destroy_command_line_args(args);
+	return success;
+}
+
 void mcc_utils_print_title_image() {
 	char *title =
 	    " ______  ___     _________      ______________                  \n"
@@ -162,8 +212,8 @@ void mcc_utils_print_title_image() {
 //  Helper Function Definitions
 //******************************************************************************
 
-static bool mcc_utils_file_exists(char const *path) {
-	return access(path, F_OK) ? false : true;
+static bool mcc_utils_file_exists(mcc_Maybe_t path) {
+	return access(mcc_from_just_string(path), F_OK) ? false : true;
 }
 
 static char *mcc_utils_get_default_config_path() {
@@ -194,6 +244,8 @@ static enum MCC_UTILS_ARG_TYPE mcc_utils_map_arg_to_enum(char const *arg) {
 		return CONFIG_PATH;
 	} else if (!strcmp(arg, "-h") || !strcmp(arg, "--help")) {
 		return HELP;
+	} else if (!strcmp(arg, "-p") || !strcmp(arg, "--particles")) {
+		return PARTICLE_POSITIONS;
 	} else {
 		return NONE;
 	}
@@ -208,7 +260,9 @@ static void mcc_utils_print_help_message() {
 	       " Options:\n"
 	       "  -c / --config		Pass a non-standrad config file to the "
 	       "simulation.\n"
-	       "  -h / --help    	Show this help message and exit.\n\n"
+	       "  -h / --help    	Show this help message and exit.\n"
+	       "  -p / --particles	Pass a particle position configuration in CSV "
+	       "format to initialize the data.\n\n"
 	       " Example:\n"
 	       "  MoCaChem\n"
 	       "  MoCaChem --config ./configs/config-1.toml\n\n"

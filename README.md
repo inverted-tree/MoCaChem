@@ -4,6 +4,8 @@ MoCaChem is a program that uses the Monte Carlo method to estimate the chemical 
 
 ### Building the Code
 
+This project uses [xmake](https://xmake.io/#/) as its build system. If you do not have xmake installed take a look at the [installation section](https://xmake.io/#/guide/installation) in the guide.
+
 To build the project, simply run:
 
 ```sh
