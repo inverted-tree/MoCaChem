@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="ascii-art.svg" />
+</p>
+
 **MoCaChem: Monte Carlo Chemical Potential Estimation**
 
 MoCaChem is a program that uses the Monte Carlo method to estimate the chemical potential of a fluid governed by Lennard-Jones potential interactions. By simulating particle fluctuations in defined sub-regions of the system's volume, it accurately calculates the thermodynamic properties of the system, providing insight into phase equilibria and molecular dynamics.
