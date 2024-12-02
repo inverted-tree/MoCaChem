@@ -24,4 +24,6 @@ mcc_Config_t mcc_utils_init_config(mcc_CmdlOpts_t args);
 
 bool mcc_utils_init_particles(mcc_CmdlOpts_t *args, mcc_Config_t *config);
 
+void mcc_utils_print_progress_bar(int progress, int total);
+
 void mcc_utils_print_title_image();

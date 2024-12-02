@@ -18,19 +18,35 @@ int main(int argc, char **argv) {
 	success &= mcc_utils_init_particles(&args, &config);
 
 	mcc_Energy_t global_energy = mcc_lennard_jones_system_potential(&config);
-	fprintf(stdout, "The initial chemical potential is %f\n",
-	        global_energy.lennard_jones / config.particle_count);
+	fprintf(stdout,
+	        "   ┌──────────────────┬──────────────────┬──────────────────┐   \n"
+	        "   │    < Energy >    │   < Pressure >   │ Acceptance Ratio │   \n"
+	        "   ├──────────────────┼──────────────────┼──────────────────┤   \n"
+	        "   │   %12.6f   │   %12.6f   │   %12.6f   │\n\n\n",
+	        global_energy.lennard_jones / config.particle_count,
+	        global_energy.virial / config.particle_count, 1.0);
 
 	size_t accepted_moves = 0;
 	for (int i = 0; i < config.monte_carlo_steps; i++) {
 		accepted_moves += mcc_monte_carlo_move(&global_energy, &config);
-		if (i % 50000 == 0)
-			printf("Move [%i]: LJ-Potential = %f\n", i,
-			       global_energy.lennard_jones / config.particle_count);
+		if (i > 0 && i % (int)(config.monte_carlo_steps / 1000) == 0) {
+			printf("\033[A\033[A\033[A\r   │   %12.6f   │   %12.6f   │   "
+			       "%12.6f   │  "
+			       " \n",
+			       global_energy.lennard_jones / config.particle_count,
+			       global_energy.virial / config.particle_count,
+			       (double)accepted_moves / i);
+			printf("   "
+			       "└──────────────────┴──────────────────┴──────────────────┘ "
+			       "  ");
+			mcc_utils_print_progress_bar(i, config.monte_carlo_steps);
+			fflush(stdout);
+		}
 	}
-	printf("Simulation finished with %zu accepted moves out of %i => %f%%\n",
-	       accepted_moves, config.monte_carlo_steps,
-	       (double)accepted_moves / config.monte_carlo_steps);
+	printf("\033[A\033[A");
+	mcc_utils_print_progress_bar(config.monte_carlo_steps,
+	                             config.monte_carlo_steps);
+	printf("\n");
 	mcc_csv_write_particle_configuration("../../../../final.csv", &config);
 
 	success &= fs.finalize();

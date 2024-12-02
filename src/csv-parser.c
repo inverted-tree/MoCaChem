@@ -122,7 +122,10 @@ bool mcc_csv_write_particle_configuration(char const *filename,
 		fprintf(file, "%i, %16.8f, %16.8f, %16.8f,\n", i, p->x, p->y, p->z);
 	}
 
-	fclose(file);
+	if (fclose(file))
+		printf("The particle configuration has been successfully written to "
+		       "'%s'.\n",
+		       filename);
 
 	return true;
 }

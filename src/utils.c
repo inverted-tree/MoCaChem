@@ -193,6 +193,23 @@ bool mcc_utils_init_particles(mcc_CmdlOpts_t *args, mcc_Config_t *config) {
 	return success;
 }
 
+void mcc_utils_print_progress_bar(int progress, int total) {
+	int percentage = (progress * 100) / total;
+	int bar_width = 58;
+	int progress_chars = (progress * bar_width) / total;
+
+	printf("\n\n   ");
+	for (int i = 0; i < bar_width; i++) {
+		if (i < progress_chars) {
+			printf("▓"); // ●");
+		} else {
+			printf("░"); // ○");
+		}
+	}
+	printf(" %d%%", percentage);
+
+	fflush(stdout);
+}
 void mcc_utils_print_title_image() {
 	char *title =
 	    " ______  ___     _________      ______________                  \n"
