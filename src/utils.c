@@ -182,7 +182,7 @@ bool mcc_utils_init_particles(mcc_CmdlOpts_t *args, mcc_Config_t *config) {
 			    (y + 0.5) * dl_cell,
 			    (z + 0.5) * dl_cell,
 			};
-			success &= fs.set_particle(i, particle, config);
+			success &= fs.set_particle(i, &particle);
 		}
 	} else {
 		mcc_csv_read_particle_configuration(

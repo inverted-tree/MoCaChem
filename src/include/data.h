@@ -20,9 +20,8 @@ typedef struct {
 typedef struct {
 	bool (*initialize)(mcc_Config_t *config);
 	bool (*finalize)();
-	mcc_Particle_t *(*get_particle)(int index, mcc_Config_t *config);
-	bool (*set_particle)(int index, mcc_Particle_t particle,
-	                     mcc_Config_t *config);
+	mcc_Particle_t *(*get_particle)(int index);
+	bool (*set_particle)(int index, mcc_Particle_t *particle);
 } mcc_Particle_Access_Functions_t;
 
 //******************************************************************************

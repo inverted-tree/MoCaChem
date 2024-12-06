@@ -1,4 +1,5 @@
 #include "lennard-jones.h"
+#include "data.h"
 #include <math.h>
 #include <stdlib.h>
 
@@ -17,17 +18,17 @@ static mcc_Energy_t mcc_lennard_jones_potential(mcc_Particle_t *p1,
 mcc_Energy_t mcc_lennard_jones_particle_potential(int index,
                                                   mcc_Particle_t *particle,
                                                   mcc_Config_t *config) {
-	mcc_Particle_Access_Functions_t fs = mcc_data_get_access_functions();
+	//	mcc_Particle_Access_Functions_t fs = mcc_data_get_access_functions();
 	mcc_Energy_t energy = {
 	    .lennard_jones = 0.0,
 	    .virial = 0.0,
 	};
 
-	for (int i = 0; i < config->particle_count; i++) {
-		if (i == index)
-			continue;
-		mcc_Energy_t contribution = mcc_lennard_jones_potential(
-		    particle, fs.get_particle(i, config), config);
+	mcc_Particle_t *neighbour;
+	mcc_Particle_Iterator_t iter = mcc_data_get_iterator(index, config);
+	while (!iter.is_done(neighbour = iter.next())) {
+		mcc_Energy_t contribution =
+		    mcc_lennard_jones_potential(particle, neighbour, config);
 		energy.lennard_jones += contribution.lennard_jones;
 		energy.virial += contribution.virial;
 	}
@@ -45,7 +46,7 @@ mcc_Energy_t mcc_lennard_jones_system_potential(mcc_Config_t *config) {
 	for (int i = 0; i < config->particle_count - 1; i++) {
 		for (int j = i + 1; j < config->particle_count; j++) {
 			mcc_Energy_t contribution = mcc_lennard_jones_potential(
-			    fs.get_particle(i, config), fs.get_particle(j, config), config);
+			    fs.get_particle(i), fs.get_particle(j), config);
 			energy.lennard_jones += contribution.lennard_jones;
 			energy.virial += contribution.virial;
 		}

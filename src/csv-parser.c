@@ -86,7 +86,7 @@ bool mcc_csv_read_particle_configuration(char const *filename,
 		}
 
 		if (success)
-			fs.set_particle(index, p, NULL);
+			fs.set_particle(index, &p);
 		else
 			break;
 	}
@@ -113,7 +113,7 @@ bool mcc_csv_write_particle_configuration(char const *filename,
 
 	mcc_Particle_Access_Functions_t fs = mcc_data_get_access_functions();
 	for (int i = 0; i < config->particle_count; i++) {
-		mcc_Particle_t *p = fs.get_particle(i, config);
+		mcc_Particle_t *p = fs.get_particle(i);
 		if (!p) {
 			fprintf(stderr, "Failed to recieve particle with index '%i'.\n", i);
 			fclose(file);

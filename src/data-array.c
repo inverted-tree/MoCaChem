@@ -40,10 +40,9 @@ bool mcc_data_array_initalize(mcc_Config_t *config);
 
 bool mcc_data_array_finalize();
 
-mcc_Particle_t *mcc_data_array_get_particle(int index, mcc_Config_t *config);
+mcc_Particle_t *mcc_data_array_get_particle(int index);
 
-bool mcc_data_array_set_particle(int index, mcc_Particle_t particle,
-                                 mcc_Config_t *config);
+bool mcc_data_array_set_particle(int index, mcc_Particle_t *particle);
 
 mcc_Particle_t *mcc_data_array_iterator_next();
 
@@ -108,8 +107,7 @@ bool mcc_data_array_finalize() {
 	return true;
 }
 
-mcc_Particle_t *mcc_data_array_get_particle(int index, mcc_Config_t *config) {
-	(void)config;
+mcc_Particle_t *mcc_data_array_get_particle(int index) {
 	if (!data.is_initialized)
 		mcc_panic(MCC_ERR_INDEX_OUT_OF_BOUNDS,
 		          "Data has not been initialized before access");
@@ -125,9 +123,7 @@ mcc_Particle_t *mcc_data_array_get_particle(int index, mcc_Config_t *config) {
 	mcc_panic(MCC_ERR_INDEX_OUT_OF_BOUNDS, err_msg);
 }
 
-bool mcc_data_array_set_particle(int index, mcc_Particle_t particle,
-                                 mcc_Config_t *config) {
-	(void)config;
+bool mcc_data_array_set_particle(int index, mcc_Particle_t *particle) {
 	if (!data.is_initialized)
 		mcc_panic(MCC_ERR_INDEX_OUT_OF_BOUNDS,
 		          "Data has not been initialized before access");
@@ -138,13 +134,14 @@ bool mcc_data_array_set_particle(int index, mcc_Particle_t particle,
 		return false;
 	}
 
-	data.particle_positions[index] = particle;
+	data.particle_positions[index] = *particle;
 	return true;
 }
 
 mcc_Particle_t *mcc_data_array_iterator_next() {
-	return (state.current != (size_t)state.index &&
-	        state.current < data.number_of_particles)
+	if (state.current == (size_t)state.index)
+		state.current++;
+	return (state.current < data.number_of_particles)
 	           ? &data.particle_positions[state.current++]
 	           : NULL;
 }
