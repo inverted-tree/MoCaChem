@@ -16,7 +16,7 @@ typedef struct {
 // Interface Function Declarations
 //******************************************************************************
 
-mcc_Energy_t mcc_lennard_jones_particle_potential(int index,
+mcc_Energy_t mcc_lennard_jones_particle_potential(mcc_Index_t *index,
                                                   mcc_Particle_t *particle,
                                                   mcc_Config_t *config);
 

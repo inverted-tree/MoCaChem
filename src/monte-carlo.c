@@ -1,6 +1,7 @@
 #include "monte-carlo.h"
 #include "config.h"
 #include "data.h"
+#include "include/data.h"
 #include "lennard-jones.h"
 #include <math.h>
 #include <stdlib.h>
@@ -21,23 +22,23 @@ mcc_monte_carlo_displace_particle(mcc_Particle_t const *particle,
 //******************************************************************************
 
 bool mcc_monte_carlo_move(mcc_Energy_t *energy, mcc_Config_t *config) {
-	mcc_Particle_Access_Functions_t fs = mcc_data_get_access_functions();
+	mcc_DAF_t fs = mcc_data_get_access_fs();
 
-	int index = rand() % config->particle_count;
-	mcc_Particle_t *old_particle = fs.get_particle(index);
+	mcc_Index_t index = mcc_data_gen_index(rand() % config->particle_count);
+	mcc_Particle_t *old_particle = fs.get_particle(&index);
 	mcc_Energy_t old_energy =
-	    mcc_lennard_jones_particle_potential(index, old_particle, config);
+	    mcc_lennard_jones_particle_potential(&index, old_particle, config);
 
 	mcc_Particle_t new_particle = mcc_monte_carlo_displace_particle(
 	    old_particle, config->max_displ, config->box_length);
 
 	mcc_Energy_t new_energy =
-	    mcc_lennard_jones_particle_potential(index, &new_particle, config);
+	    mcc_lennard_jones_particle_potential(&index, &new_particle, config);
 
 	double chance = (double)rand() / RAND_MAX;
 	if (chance < exp(-(new_energy.lennard_jones - old_energy.lennard_jones) /
 	                 config->fluid_temp)) {
-		fs.set_particle(index, &new_particle);
+		fs.set_particle(&index, &new_particle);
 		energy->lennard_jones +=
 		    new_energy.lennard_jones - old_energy.lennard_jones;
 		energy->virial += new_energy.virial - old_energy.virial;

@@ -1,14 +1,14 @@
 #pragma once
 
 #include "config.h"
-#include <stdbool.h>
+#include "utils.h"
 
 //******************************************************************************
 //  Interface function declarations
 //******************************************************************************
 
-bool mcc_csv_read_particle_configuration(char const *filename,
-                                         mcc_Config_t *config);
+mcc_Status_t mcc_csv_load_state_space(char const filename[static 1],
+                                      mcc_Config_t const config[static 1]);
 
-bool mcc_csv_write_particle_configuration(char const *filename,
-                                          mcc_Config_t *config);
+mcc_Status_t mcc_csv_write_state_space(char const filename[static 1],
+                                       mcc_Config_t const config[static 1]);

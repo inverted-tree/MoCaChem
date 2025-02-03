@@ -1,7 +1,8 @@
 #include "csv-parser.h"
 #include "config.h"
 #include "data.h"
-#include "panic.h"
+#include "include/data.h"
+#include "utils.h"
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -23,32 +24,39 @@ static bool mcc_csv_parse_double(char *value, void *field);
 
 static bool mcc_csv_parse_int(char *value, void *field);
 
-bool mcc_csv_validate_particle_data_config(char *header, mcc_Config_t *config);
+static bool mcc_csv_validate_particle_data_config(char *header,
+                                                  mcc_Config_t *config);
 
 //******************************************************************************
 //  Interface Function Definitions
 //******************************************************************************
 
-bool mcc_csv_read_particle_configuration(char const *filename,
-                                         mcc_Config_t *config) {
+mcc_Status_t mcc_csv_load_state_space(char const *filename,
+                                      mcc_Config_t const *config) {
+	mcc_Status_t s = mcc_utils_status_success();
+	char err_msg[STATUS_MSG_SIZE];
+	memset(err_msg, 0, sizeof(err_msg));
+
 	FILE *file = fopen(filename, "r");
 	if (!file) {
-		char err_msg[256];
 		snprintf(err_msg, sizeof(err_msg),
-		         "Cannot read partilce data file '%s'", filename);
-		mcc_panic(MCC_ERR_FILE_NOT_FOUND, err_msg);
+		         "Cannot read partilce data file '%s'.", filename);
+		goto ERROR;
 	}
 
 	char line[1024];
-	if (!fgets(line, sizeof(line), file))
-		return false;
+	if (!fgets(line, sizeof(line), file)) {
+		snprintf(err_msg, sizeof(err_msg),
+		         "Cannot read line from data file '%s'.", filename);
+		goto ERROR;
+	}
+
 	if (!mcc_csv_validate_particle_data_config(line, config)) {
-		char err_msg[256];
 		snprintf(err_msg, sizeof(err_msg),
 		         "The configuration does not match the parameters in the "
 		         "particle file:\n Particle Count = %i\n System Volume = %f",
 		         config->particle_count, config->box_volume);
-		mcc_panic(MCC_ERR_IO, err_msg);
+		goto ERROR;
 	}
 
 	ValueParser parsers[] = {
@@ -58,10 +66,11 @@ bool mcc_csv_read_particle_configuration(char const *filename,
 	    mcc_csv_parse_double,
 	};
 
-	mcc_Particle_Access_Functions_t fs = mcc_data_get_access_functions();
+	mcc_DAF_t fs = mcc_data_get_access_fs();
 
-	bool success = true;
+	size_t line_count = 0;
 	while (fgets(line, sizeof(line), file)) {
+		line_count++;
 		if (line[0] == '\0' || line[0] == '#' || line[0] == '\n')
 			continue;
 
@@ -77,47 +86,58 @@ bool mcc_csv_read_particle_configuration(char const *filename,
 		char *value = strtok(line, ", ");
 		for (size_t i = 0; i < 4; i++) {
 			if (!parsers[i](value, fields[i])) {
-				fprintf(stderr, "Failed to parse token '%s' in file %s.\n",
-				        value, filename);
-				success = false;
-				break;
+				snprintf(
+				    err_msg, sizeof(err_msg),
+				    "Failed to parse token %zu '%s' in line %zu in file %s.", i,
+				    value, line_count, filename);
+				goto ERROR;
 			}
 			value = strtok(NULL, ",\n");
 		}
-
-		if (success)
-			fs.set_particle(index, &p);
-		else
-			break;
+		mcc_Index_t idx = {.idx = index};
+		fs.set_particle(&idx, &p);
 	}
 
 	fclose(file);
-	return success;
+	return s;
+
+ERROR:
+	s.is = FAILURE;
+	strncpy(s.msg, err_msg, sizeof(STATUS_MSG_SIZE));
+	return s;
 }
 
-bool mcc_csv_write_particle_configuration(char const *filename,
-                                          mcc_Config_t *config) {
+mcc_Status_t mcc_csv_write_state_space(char const *filename,
+                                       mcc_Config_t const *config) {
+	mcc_Status_t s = mcc_utils_status_success();
+	char err_msg[STATUS_MSG_SIZE];
+	memset(err_msg, 0, sizeof(err_msg));
+
 	if (!filename || !config) {
-		fprintf(stderr, "Failed to initialize CSV writer for file '%s'.\n",
-		        filename);
-		return false;
+		snprintf(err_msg, sizeof(err_msg),
+		         "Failed to initialize CSV writer for file '%s'.", filename);
+		goto ERROR;
 	}
+
 	FILE *file = fopen(filename, "w");
 	if (!file) {
-		fprintf(stderr, "Failed to open file '%s' for writing.\n", filename);
-		return false;
+		snprintf(err_msg, sizeof(err_msg),
+		         "Failed to open file '%s' for writing.", filename);
+		goto ERROR;
 	}
 
 	fprintf(file, format, config->particle_count, config->box_volume);
 	fprintf(file, "# Particle Configuration: Index, X, Y, Z Coordinates\n");
 
-	mcc_Particle_Access_Functions_t fs = mcc_data_get_access_functions();
+	mcc_DAF_t fs = mcc_data_get_access_fs();
 	for (int i = 0; i < config->particle_count; i++) {
-		mcc_Particle_t *p = fs.get_particle(i);
+		mcc_Index_t idx = {.idx = i};
+		mcc_Particle_t *p = fs.get_particle(&idx);
 		if (!p) {
-			fprintf(stderr, "Failed to recieve particle with index '%i'.\n", i);
+			snprintf(err_msg, sizeof(err_msg),
+			         "Failed to recieve particle with index '%i'.", i);
 			fclose(file);
-			return false;
+			goto ERROR;
 		}
 		fprintf(file, "%i, %16.8f, %16.8f, %16.8f,\n", i, p->x, p->y, p->z);
 	}
@@ -127,7 +147,12 @@ bool mcc_csv_write_particle_configuration(char const *filename,
 		       "'%s'.\n",
 		       filename);
 
-	return true;
+	return s;
+
+ERROR:
+	s.is = FAILURE;
+	strncpy(s.msg, err_msg, sizeof(STATUS_MSG_SIZE));
+	return s;
 }
 
 //******************************************************************************
@@ -152,7 +177,8 @@ static bool mcc_csv_parse_double(char *value, void *field) {
 	return true;
 }
 
-bool mcc_csv_validate_particle_data_config(char *header, mcc_Config_t *config) {
+static bool mcc_csv_validate_particle_data_config(char *header,
+                                                  mcc_Config_t *config) {
 	if (!header || !config)
 		return false;
 

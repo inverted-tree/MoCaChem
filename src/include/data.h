@@ -1,11 +1,17 @@
 #pragma once
 
 #include "config.h"
+#include "utils.h"
 #include <stdbool.h>
 
 //******************************************************************************
 //  Interface datatype declarations
 //******************************************************************************
+
+typedef struct mcc_Index_t mcc_Index_t;
+struct mcc_Index_t {
+	int idx;
+};
 
 typedef struct {
 	double x, y, z;
@@ -18,16 +24,19 @@ typedef struct {
 } mcc_Particle_Iterator_t;
 
 typedef struct {
-	bool (*initialize)(mcc_Config_t *config);
-	bool (*finalize)();
-	mcc_Particle_t *(*get_particle)(int index);
-	bool (*set_particle)(int index, mcc_Particle_t *particle);
-} mcc_Particle_Access_Functions_t;
+	mcc_Status_t (*init)(mcc_Config_t *config);
+	mcc_Status_t (*destroy)();
+	mcc_Particle_t *(*get_particle)(mcc_Index_t *index);
+	bool (*set_particle)(mcc_Index_t *index, mcc_Particle_t *particle);
+} mcc_DAF_t;
 
 //******************************************************************************
 //  Interface function declarations
 //******************************************************************************
 
-mcc_Particle_Access_Functions_t mcc_data_get_access_functions();
+mcc_DAF_t mcc_data_get_access_fs();
 
-mcc_Particle_Iterator_t mcc_data_get_iterator(int index, mcc_Config_t *config);
+mcc_Particle_Iterator_t mcc_data_get_iterator(mcc_Index_t *index,
+                                              mcc_Config_t *config);
+
+mcc_Index_t mcc_data_gen_index(int idx);

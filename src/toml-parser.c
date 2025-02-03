@@ -1,91 +1,135 @@
 #include "toml-parser.h"
-#include "maybe.h"
-#include "panic.h"
+#include "config.h"
+#include "include/utils.h"
 #include "toml.h"
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 //******************************************************************************
 //  Helper Function Declarations
 //******************************************************************************
 
-mcc_Maybe_t mcc_toml_get_double_with_key(toml_table_t *table, char *key);
+mcc_Status_t mcc_toml_get_double_with_key(double value[static 1],
+                                          toml_table_t const *table,
+                                          char const key[static 1]);
 
-mcc_Maybe_t mcc_toml_get_int_with_key(toml_table_t *table, char *key);
+mcc_Status_t mcc_toml_get_int_with_key(int value[static 1],
+                                       toml_table_t const *table,
+                                       char const key[static 1]);
 
-mcc_Maybe_t mcc_toml_get_string_with_key(toml_table_t *table, char *key);
+mcc_Status_t mcc_toml_get_string_with_key(char value[static 1],
+                                          toml_table_t const *table,
+                                          char const key[static 1]);
 
 //******************************************************************************
 //  Interface Function Definitions
 //******************************************************************************
 
-mcc_Config_t mcc_toml_parse_config(char *config_path) {
-	size_t const ebuf_size = 256;
+mcc_Status_t mcc_toml_parse_config(mcc_Config_t config[static 1],
+                                   char const config_path[static 1]) {
 	FILE *file = fopen(config_path, "r");
 	if (!file) {
-		char err_msg[ebuf_size];
-		snprintf(err_msg, ebuf_size, "Cannot read file '%s'", config_path);
-		mcc_panic(MCC_ERR_IO, err_msg);
+		char msg[STATUS_MSG_SIZE];
+		snprintf(msg, sizeof(msg), "Cannot read file '%s'.", config_path);
+		return mcc_utils_status_failure(msg);
 	}
 
-	char toml_err_msg[ebuf_size];
-	toml_table_t *config_table = toml_parse_file(file, toml_err_msg, ebuf_size);
+	char toml_err_msg[200];
+	toml_table_t *table =
+	    toml_parse_file(file, toml_err_msg, sizeof(toml_err_msg));
 	fclose(file);
 
-	if (!config_table) {
-		char err_msg[ebuf_size];
-		snprintf(err_msg, ebuf_size, "Cannot parse file '%s'", config_path);
-		mcc_panic(MCC_ERR_IO, err_msg);
+	if (!table) {
+		char msg[STATUS_MSG_SIZE];
+		snprintf(msg, sizeof(msg), "Cannot parse file '%s'.", config_path);
+		return mcc_utils_status_failure(msg);
 	}
 
-	mcc_Config_t config = {};
-	// TODO: parse all values
-	config.monte_carlo_steps = mcc_from_just_int(
-	    mcc_toml_get_int_with_key(config_table, "monte-carlo-steps"));
-	config.equilibrium_steps = mcc_from_just_int(
-	    mcc_toml_get_int_with_key(config_table, "equilibrium-steps"));
-	config.particle_count = mcc_from_just_int(
-	    mcc_toml_get_int_with_key(config_table, "particle-count"));
-	config.fluid_density = mcc_from_just_double(
-	    mcc_toml_get_double_with_key(config_table, "fluid-density"));
-	config.fluid_temp = mcc_from_just_double(
-	    mcc_toml_get_double_with_key(config_table, "fluid-temperature"));
-	config.max_displ = mcc_from_just_double(
-	    mcc_toml_get_double_with_key(config_table, "maximum-displacement"));
-	config.cutoff_dist = mcc_from_just_double(
-	    mcc_toml_get_double_with_key(config_table, "cutoff-distance"));
+	mcc_Status_t s;
+	s = mcc_toml_get_int_with_key(&config->monte_carlo_steps, table,
+	                              "monte-carlo-steps");
+	if (s.is == SUCCESS)
+		s = mcc_toml_get_int_with_key(&config->equilibrium_steps, table,
+		                              "equilibrium-steps");
+	if (s.is == SUCCESS)
+		s = mcc_toml_get_int_with_key(&config->particle_count, table,
+		                              "particle-count");
+	if (s.is == SUCCESS)
+		s = mcc_toml_get_double_with_key(&config->fluid_density, table,
+		                                 "fluid-density");
+	if (s.is == SUCCESS)
+		s = mcc_toml_get_double_with_key(&config->fluid_temp, table,
+		                                 "fluid-temperature");
+	if (s.is == SUCCESS)
+		s = mcc_toml_get_double_with_key(&config->max_displ, table,
+		                                 "maximum-displacement");
+	if (s.is == SUCCESS)
+		s = mcc_toml_get_double_with_key(&config->cutoff_dist, table,
+		                                 "cutoff-distance");
 
-	toml_free(config_table);
+	toml_free(table);
 
-	return config;
+	return s;
+}
+
+mcc_Status_t mcc_toml_generate_config_file(char const config_path[static 1]) {
+	(void)config_path;
+	return mcc_utils_status_failure(
+	    "The config file generator is not yet implemented!");
 }
 
 //******************************************************************************
 //  Helper Function Definitions
 //******************************************************************************
 
-mcc_Maybe_t mcc_toml_get_double_with_key(toml_table_t *table, char *key) {
-	toml_datum_t value = toml_double_in(table, key);
+mcc_Status_t mcc_toml_get_double_with_key(double value[static 1],
+                                          toml_table_t const *table,
+                                          char const key[static 1]) {
+	toml_datum_t v = toml_double_in(table, key);
 
-	if (value.ok)
-		return mcc_just_double(value.u.d);
+	if (!v.ok) {
+		char msg[STATUS_MSG_SIZE];
+		snprintf(msg, sizeof(msg),
+		         "Failed to read [double] value for key '%s'.", key);
+		return mcc_utils_status_failure(msg);
+	}
 
-	return mcc_nothing();
+	*value = v.u.d;
+
+	return mcc_utils_status_success();
 }
 
-mcc_Maybe_t mcc_toml_get_int_with_key(toml_table_t *table, char *key) {
-	toml_datum_t value = toml_int_in(table, key);
+mcc_Status_t mcc_toml_get_int_with_key(int value[static 1],
+                                       toml_table_t const *table,
+                                       char const key[static 1]) {
+	toml_datum_t v = toml_int_in(table, key);
 
-	if (value.ok)
-		return mcc_just_int(value.u.i);
+	if (!v.ok) {
+		char msg[STATUS_MSG_SIZE];
+		snprintf(msg, sizeof(msg),
+		         "Failed to read [integer] value for key '%s'.", key);
+		return mcc_utils_status_failure(msg);
+	}
 
-	return mcc_nothing();
+	*value = v.u.i;
+
+	return mcc_utils_status_success();
 }
 
-mcc_Maybe_t mcc_toml_get_string_with_key(toml_table_t *table, char *key) {
-	toml_datum_t value = toml_string_in(table, key);
+mcc_Status_t mcc_toml_get_string_with_key(char *value,
+                                          toml_table_t const *table,
+                                          char const key[static 1]) {
+	toml_datum_t v = toml_string_in(table, key);
 
-	if (value.ok)
-		return mcc_just_string(value.u.s);
+	if (!v.ok) {
+		char msg[STATUS_MSG_SIZE];
+		snprintf(msg, sizeof(msg),
+		         "Failed to read [string] value for key '%s'.", key);
+		return mcc_utils_status_failure(msg);
+	}
 
-	return mcc_nothing();
+	value = v.u.s;
+
+	return mcc_utils_status_success();
 }

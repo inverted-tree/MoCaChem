@@ -1,7 +1,9 @@
 #include "data-array.h"
 #include "config.h"
 #include "data.h"
-#include "panic.h"
+#include "include/data.h"
+#include "include/utils.h"
+#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
@@ -10,23 +12,25 @@
 //  Data Representation Definition
 //******************************************************************************
 
+// struct mcc_Index_t {
+//	int idx;
+// };
+
 struct mcc_Data_Array_t {
-	bool is_initialized;
-	size_t number_of_particles;
-	mcc_Particle_t *particle_positions;
+	bool init;
+	size_t length;
+	mcc_Particle_t *particles;
 };
 
-struct mcc_Particle_Iterator_State_t {
+struct mcc_Iter_State_t {
 	int index;
 	size_t current;
 	double cutoff;
 };
 
-struct mcc_Data_Array_t data = {.is_initialized = false,
-                                .number_of_particles = 0,
-                                .particle_positions = NULL};
+struct mcc_Data_Array_t data = {.init = false, .length = 0, .particles = NULL};
 
-struct mcc_Particle_Iterator_State_t state = {
+struct mcc_Iter_State_t state = {
     .index = 0,
     .current = 0,
     .cutoff = 0.0,
@@ -36,13 +40,13 @@ struct mcc_Particle_Iterator_State_t state = {
 //  Internal function declarations
 //******************************************************************************
 
-bool mcc_data_array_initalize(mcc_Config_t *config);
+mcc_Status_t mcc_data_array_init(mcc_Config_t config[static 1]);
 
-bool mcc_data_array_finalize();
+mcc_Status_t mcc_data_array_destroy();
 
-mcc_Particle_t *mcc_data_array_get_particle(int index);
+mcc_Particle_t *mcc_data_array_get_particle(mcc_Index_t *index);
 
-bool mcc_data_array_set_particle(int index, mcc_Particle_t *particle);
+bool mcc_data_array_set_particle(mcc_Index_t *index, mcc_Particle_t *particle);
 
 mcc_Particle_t *mcc_data_array_iterator_next();
 
@@ -52,35 +56,44 @@ bool mcc_data_array_iterator_is_done(mcc_Particle_t *result);
 //  Interface function definitions
 //******************************************************************************
 
-mcc_Particle_Access_Functions_t mcc_data_array_get_access_functions() {
-	mcc_Particle_Access_Functions_t functions = {
-	    .initialize = mcc_data_array_initalize,
-	    .finalize = mcc_data_array_finalize,
+mcc_DAF_t mcc_data_array_get_access_fs() {
+	mcc_DAF_t fs = {
+	    .init = mcc_data_array_init,
+	    .destroy = mcc_data_array_destroy,
 	    .get_particle = mcc_data_array_get_particle,
 	    .set_particle = mcc_data_array_set_particle,
 	};
-	return functions;
+	return fs;
 }
 
-mcc_Particle_Iterator_t mcc_data_array_get_iterator(int index, double cutoff) {
-	state.index = index;
+mcc_Particle_Iterator_t mcc_data_array_get_iterator(mcc_Index_t *index,
+                                                    double cutoff) {
+	state.index = index->idx;
 	state.current = 0;
 	state.cutoff = cutoff;
 
-	mcc_Particle_Iterator_t iterator = {
+	mcc_Particle_Iterator_t iter = {
 	    .next = mcc_data_array_iterator_next,
 	    .is_done = mcc_data_array_iterator_is_done,
 	};
-	return iterator;
+	return iter;
+}
+
+mcc_Index_t mcc_data_array_gen_index(int idx) {
+	mcc_Index_t index = {
+	    .idx = idx,
+	};
+	return index;
 }
 
 //******************************************************************************
 //  Internal function definitions
 //******************************************************************************
 
-bool mcc_data_array_initalize(mcc_Config_t *config) {
-	if (data.is_initialized)
-		return false;
+mcc_Status_t mcc_data_array_init(mcc_Config_t config[static 1]) {
+	if (data.init)
+		return mcc_utils_status_failure(
+		    "Array instance is already initialized");
 
 	size_t number_of_particles = config->particle_count;
 	srand(time(NULL));
@@ -88,62 +101,52 @@ bool mcc_data_array_initalize(mcc_Config_t *config) {
 	mcc_Particle_t *particle_positions =
 	    malloc(number_of_particles * sizeof(mcc_Particle_t));
 	if (particle_positions == NULL) {
-		puts("Error in particle buffer allocation");
-		return false;
+		return mcc_utils_status_failure("Error in particle buffer allocation");
 	}
 
-	data.number_of_particles = number_of_particles;
-	data.particle_positions = particle_positions;
+	data.length = number_of_particles;
+	data.particles = particle_positions;
 
-	data.is_initialized = true;
+	data.init = true;
 
-	return data.is_initialized;
+	return mcc_utils_status_success();
 }
 
-bool mcc_data_array_finalize() {
-	if (data.particle_positions)
-		free(data.particle_positions);
-	data.is_initialized = false;
-	return true;
+mcc_Status_t mcc_data_array_destroy() {
+	if (data.particles)
+		free(data.particles);
+	data.init = false;
+
+	return mcc_utils_status_success();
 }
 
-mcc_Particle_t *mcc_data_array_get_particle(int index) {
-	if (!data.is_initialized)
-		mcc_panic(MCC_ERR_INDEX_OUT_OF_BOUNDS,
-		          "Data has not been initialized before access");
+mcc_Particle_t *mcc_data_array_get_particle(mcc_Index_t *index) {
+	assert(data.init);
 
-	if (index < 0)
-		index = rand() % data.number_of_particles;
+	if (index->idx < 0)
+		index->idx = rand() % data.length;
 
-	if ((size_t)index < data.number_of_particles)
-		return &data.particle_positions[index];
+	if ((size_t)index->idx < data.length)
+		return &data.particles[index->idx];
 
-	char err_msg[256];
-	snprintf(err_msg, 256, "Particle index '%i' is out of bounds", index);
-	mcc_panic(MCC_ERR_INDEX_OUT_OF_BOUNDS, err_msg);
+	fprintf(stderr, "Particle index '%i' is out of bounds", index->idx);
+	exit(1);
 }
 
-bool mcc_data_array_set_particle(int index, mcc_Particle_t *particle) {
-	if (!data.is_initialized)
-		mcc_panic(MCC_ERR_INDEX_OUT_OF_BOUNDS,
-		          "Data has not been initialized before access");
+bool mcc_data_array_set_particle(mcc_Index_t *index, mcc_Particle_t *particle) {
+	assert(data.init);
+	assert(index->idx >= 0);
+	assert((size_t)index->idx < data.length);
 
-	if (index < 0 || (size_t)index >= data.number_of_particles) {
-		fprintf(stderr, "Particle index '%i' is out of bounds (%zu).\n", index,
-		        data.number_of_particles);
-		return false;
-	}
-
-	data.particle_positions[index] = *particle;
+	data.particles[index->idx] = *particle;
 	return true;
 }
 
 mcc_Particle_t *mcc_data_array_iterator_next() {
 	if (state.current == (size_t)state.index)
 		state.current++;
-	return (state.current < data.number_of_particles)
-	           ? &data.particle_positions[state.current++]
-	           : NULL;
+	return (state.current < data.length) ? &data.particles[state.current++]
+	                                     : NULL;
 }
 
 bool mcc_data_array_iterator_is_done(mcc_Particle_t *result) {
